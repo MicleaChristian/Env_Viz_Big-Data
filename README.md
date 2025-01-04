@@ -45,10 +45,10 @@ This project analyzes the impact of key climate change indicators (e.g., tempera
 ### **Installation**
 1. Clone this repository:
    ```bash
-   git clone https://github.com/your-repo-name.git
+   git clone https://MicleaChristian/Env_Viz_Big-Data.git
 2. Navigate to the project repository:
    ```bash
-   cd repo name
+   cd Env_Viz_Big-Data
 3. Install required Python libraries
    ```bash
    pip install -r requirements.txt
