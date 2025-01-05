@@ -21,14 +21,11 @@ This project analyzes the impact of key climate change indicators (e.g., tempera
 ## **Technologies and Tools**
 
 ### **Platforms**
-- **Airbyte**: For ingesting datasets from NOAA, NASA, or Kaggle.
 - **Databricks Community**: For cleaning, transforming, and analyzing data.
-- **Microsoft Fabric Synapse**: For ETL workflows.
+- **Azure**: For cloud storage.
 - **Power BI**: For creating and sharing visualizations.
 
 ### **Formats and Frameworks**
-- **Apache Iceberg**: For open table format storage.
-- **Redpanda or Kafka**: For real-time data streaming (optional if time permits).
 - **PySpark**: For scalable data transformations and analysis.
 
 ---
@@ -38,7 +35,6 @@ This project analyzes the impact of key climate change indicators (e.g., tempera
 ### **Prerequisites**
 - Install or set up:
   - Databricks Community Edition
-  - Airbyte for data ingestion
   - Power BI for visualization
   - Python environment with PySpark
 
@@ -49,10 +45,7 @@ This project analyzes the impact of key climate change indicators (e.g., tempera
 2. Navigate to the project repository:
    ```bash
    cd Env_Viz_Big-Data
-3. Install required Python libraries
-   ```bash
-   pip install -r requirements.txt
-4. Configure Airbyte to connect to your data sources.
+3. You may include provided code in your dataBricks instance, the sources are already set up
 ---
 
 ## Project Workflow
@@ -62,10 +55,9 @@ This project analyzes the impact of key climate change indicators (e.g., tempera
 - **Sources**:
   - [NOAA](https://www.ncei.noaa.gov/): Climate and weather data.
   - [NASA Earth Data](https://earthdata.nasa.gov/): Atmospheric and temperature trends.
-  - [Kaggle](https://www.kaggle.com/): Various datasets on climate change.
   - [Global Carbon Atlas](http://www.globalcarbonatlas.org/): CO2 emissions data by sector and region.
-- Use **Airbyte** to ingest datasets into your Lakehouse architecture:
-  - Connect Airbyte to your data sources and configure destinations.
+- Use **Databricks** to ingest datasets into your Lakehouse architecture:
+  - Connect Databricks to your data sources and configure destinations.
   - Automate the ingestion process to move raw data into the **bronze layer**.
 
 ---
@@ -90,9 +82,6 @@ This project analyzes the impact of key climate change indicators (e.g., tempera
   - **Bronze Layer**: Store raw ingested datasets.
   - **Silver Layer**: Store cleaned and structured datasets.
   - **Gold Layer**: Store aggregated data ready for visualization and reporting.
-- Use **Apache Iceberg**:
-  - Manage datasets across all layers efficiently.
-  - Enable schema evolution and time travel for version control.
 
 ---
 
@@ -100,11 +89,10 @@ This project analyzes the impact of key climate change indicators (e.g., tempera
 
 - Design a **star schema** for the **gold layer**:
   - **Fact Table**:
-    - Climate metrics such as temperature trends, CO2 emissions, and natural disaster counts.
+    - Climate metrics such as temperature trends and CO2 emissions.
   - **Dimension Tables**:
-    - **Time**: Year, month, and day.
+    - **Time**: Year.
     - **Region**: Country, continent, or other geographic divisions.
-    - **Sector**: Transport, energy, industry, etc.
 
 ---
 
@@ -169,13 +157,11 @@ You are free to use, modify, and distribute this project as per the terms of the
 - **Data Sources**:
   - [NOAA](https://www.ncei.noaa.gov/): Comprehensive climate and weather datasets.
   - [NASA Earth Data](https://earthdata.nasa.gov/): Atmospheric and temperature trends datasets.
-  - [Kaggle](https://www.kaggle.com/): Open datasets on climate change.
   - [Global Carbon Atlas](http://www.globalcarbonatlas.org/): CO2 emissions data by region and sector.
 
 - **Technologies**:
-  - **Apache Iceberg**: For managing datasets in the Lakehouse architecture.
   - **Databricks Community Edition**: For scalable data transformation.
-  - **Airbyte**: For automating data ingestion.
+  - **Azure**: For cloud storage
   - **Power BI**: For creating interactive dashboards.
 
 - Special thanks to the open-source community and contributors for the tools and frameworks used in this project.
