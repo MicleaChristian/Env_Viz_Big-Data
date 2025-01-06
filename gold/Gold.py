@@ -24,7 +24,6 @@ mount_point = f"/mnt/{container_name}"
 if any(mount.mountPoint == mount_point for mount in dbutils.fs.mounts()):
     dbutils.fs.unmount(mount_point)
 
-# Mount the Azure Blob Storage container
 dbutils.fs.mount(
     source=f"wasbs://{container_name}@{storage_account_name}.blob.core.windows.net/",
     mount_point=mount_point,
@@ -45,21 +44,18 @@ dbutils.fs.ls(mount_point)
 
 # COMMAND ----------
 
-# Load the transformed Parquet data from the gold layer
-gold_df = spark.read.parquet("/mnt/gold/emissions_transformed/")
+# Load CO2 emissions data
+gold_emissions_df = spark.read.parquet("/mnt/gold/emissions_transformed/")
 
-# Ensure all years are included (1960-2023) with 0 emissions if missing
-from pyspark.sql.functions import lit
-all_years_df = spark.createDataFrame([(str(year),) for year in range(1960, 2024)], ["Year"])
-from pyspark.sql.functions import coalesce
+# Load temperature anomalies data
+gold_temperature_df = spark.read.parquet("/mnt/gold/temperature_anomalies_transformed/")
 
-# Ensure existing Total_Emissions are retained, filling only missing years
-gold_complete_df = all_years_df.join(gold_df, "Year", "left_outer") \
-    .withColumn("Total_Emissions", coalesce(gold_df["Total_Emissions"], lit(0)))
+# Display both datasets
+print("Gold Layer - CO2 Emissions Data:")
+display(gold_emissions_df)
 
-# Display the completed DataFrame
-display(gold_complete_df)
-
+print("Gold Layer - Temperature Anomalies Data:")
+display(gold_temperature_df)
 
 # COMMAND ----------
 
@@ -69,22 +65,57 @@ display(gold_complete_df)
 
 # COMMAND ----------
 
-from pyspark.sql.functions import col, avg, max, min
+from pyspark.sql.functions import col, avg, max, min, sum
 
-# Example 1: Average Total Emissions Per Year
-avg_emissions = gold_complete_df.select(avg("Total_Emissions").alias("Average_Emissions"))
+# 1. Average CO2 Emissions per Year
+avg_emissions = gold_emissions_df.select(avg("Total_Emissions").alias("Average_Emissions"))
 print("Average Total Emissions:")
 display(avg_emissions)
 
-# Example 2: Year with Maximum Emissions
-max_emissions = gold_complete_df.select("Year", "Total_Emissions").orderBy(col("Total_Emissions").desc()).limit(1)
+# 2. Year with Maximum Total Emissions
+max_emissions = gold_emissions_df.select("Year", "Total_Emissions").orderBy(col("Total_Emissions").desc()).limit(1)
 print("Year with Maximum Total Emissions:")
 display(max_emissions)
 
-# Example 3: Year with Minimum Emissions
-min_emissions = gold_complete_df.select("Year", "Total_Emissions").orderBy(col("Total_Emissions").asc()).limit(1)
+# 3. Year with Minimum Total Emissions
+min_emissions = gold_emissions_df.select("Year", "Total_Emissions").orderBy(col("Total_Emissions").asc()).limit(1)
 print("Year with Minimum Total Emissions:")
 display(min_emissions)
+
+# 4. Average Temperature Anomaly
+avg_anomaly = gold_temperature_df.select(avg("Anomaly").alias("Average_Anomaly"))
+print("Average Temperature Anomaly:")
+display(avg_anomaly)
+
+# 5. Year with Maximum Anomaly
+max_anomaly = gold_temperature_df.select("Year", "Anomaly").orderBy(col("Anomaly").desc()).limit(1)
+print("Year with Maximum Anomaly:")
+display(max_anomaly)
+
+# 6. Year with Minimum Anomaly
+min_anomaly = gold_temperature_df.select("Year", "Anomaly").orderBy(col("Anomaly").asc()).limit(1)
+print("Year with Minimum Anomaly:")
+display(min_anomaly)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Total Emissions Per Country
+# MAGIC Calculez les émissions totales par pays sur toute la période.
+
+# COMMAND ----------
+
+# Calculate total emissions per country
+country_columns = [c for c in gold_emissions_df.columns if c not in ["Year", "Total_Emissions"]]
+total_emissions_per_country = gold_emissions_df.select(
+    *[sum(col(c)).alias(c) for c in country_columns]
+).toPandas().T.reset_index()
+total_emissions_per_country.columns = ["Country", "Total_Emissions"]
+
+# Display total emissions per country
+total_emissions_per_country = total_emissions_per_country.sort_values("Total_Emissions", ascending=False)
+print("Total Emissions Per Country:")
+display(total_emissions_per_country)
 
 # COMMAND ----------
 
@@ -96,21 +127,41 @@ display(min_emissions)
 
 import matplotlib.pyplot as plt
 
-# Convert the completed DataFrame to Pandas for visualization
-gold_pdf = gold_complete_df.toPandas()
+# CO2 Emissions Over Years
+gold_emissions_pdf = gold_emissions_df.toPandas()
+gold_emissions_pdf["Year"] = gold_emissions_pdf["Year"].astype(int)
 
-# Ensure 'Year' is sorted as integers for proper plotting
-gold_pdf["Year"] = gold_pdf["Year"].astype(int)
-gold_pdf = gold_pdf.sort_values("Year")
-
-# Line Chart: Total Emissions Over Years
 plt.figure(figsize=(12, 6))
-plt.plot(gold_pdf["Year"], gold_pdf["Total_Emissions"], marker="o")
+plt.plot(gold_emissions_pdf["Year"], gold_emissions_pdf["Total_Emissions"], marker="o")
 plt.title("Total Emissions Over Years (1960-2023)", fontsize=16)
 plt.xlabel("Year", fontsize=14)
-plt.ylabel("Total Emissions", fontsize=14)
+plt.ylabel("Total Emissions (MtCO2)", fontsize=14)
 plt.grid(True)
 plt.xticks(range(1960, 2024, 5))  # Show ticks every 5 years
+plt.show()
+
+# Temperature Anomalies Over Years
+gold_temperature_pdf = gold_temperature_df.toPandas()
+gold_temperature_pdf["Year"] = gold_temperature_pdf["Year"].astype(int)
+
+plt.figure(figsize=(12, 6))
+plt.plot(gold_temperature_pdf["Year"], gold_temperature_pdf["Anomaly"], marker="o", color="orange")
+plt.title("Temperature Anomalies Over Years (1960-2023)", fontsize=16)
+plt.xlabel("Year", fontsize=14)
+plt.ylabel("Temperature Anomaly (°C)", fontsize=14)
+plt.grid(True)
+plt.xticks(range(1960, 2024, 5))  # Show ticks every 5 years
+plt.show()
+
+# Top 10 Emitting Countries
+plt.figure(figsize=(12, 6))
+top_countries = total_emissions_per_country.head(10)
+plt.bar(top_countries["Country"], top_countries["Total_Emissions"])
+plt.title("Top 10 Countries by Total Emissions", fontsize=16)
+plt.xlabel("Country", fontsize=14)
+plt.ylabel("Total Emissions (MtCO2)", fontsize=14)
+plt.xticks(rotation=45, ha="right")
+plt.grid(axis="y")
 plt.show()
 
 # COMMAND ----------
@@ -121,8 +172,14 @@ plt.show()
 
 # COMMAND ----------
 
-# Save the analyzed data (e.g., summary statistics) back to the Gold layer
-analysis_result = gold_complete_df.select("Year", "Total_Emissions")
-analysis_result.write.format("parquet").mode("overwrite").save("/mnt/gold/analysis_results/")
+# Save analyzed CO2 emissions data
+gold_emissions_df.write.format("parquet").mode("overwrite").save("/mnt/gold/analysis_emissions/")
 
-print("Analysis results saved to /mnt/gold/analysis_results/")
+# Save analyzed temperature anomalies data
+gold_temperature_df.write.format("parquet").mode("overwrite").save("/mnt/gold/analysis_temperature_anomalies/")
+
+# Save total emissions per country
+total_emissions_per_country_spark = spark.createDataFrame(total_emissions_per_country)
+total_emissions_per_country_spark.write.format("parquet").mode("overwrite").save("/mnt/gold/total_emissions_by_country/")
+
+print("Analysis results saved to Gold Layer.")

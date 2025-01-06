@@ -21,6 +21,7 @@ access_key = "xMG8bxTSXMF7Qb3S6AaVzINxitBCSOhYaPiHvmG3ToDbk2ajZc2UQ46VbuafW8StD4
 
 mount_point = f"/mnt/{container_name}"
 
+# Unmount the container if already mounted
 if any(mount.mountPoint == mount_point for mount in dbutils.fs.mounts()):
     dbutils.fs.unmount(mount_point)
 
@@ -65,40 +66,66 @@ dbutils.fs.ls(mount_point)
 
 # COMMAND ----------
 
-# Load the cleaned Parquet data from the silver layer
-silver_df = spark.read.parquet("/mnt/silver/emissions/")
+# Load CO2 emissions data
+emissions_df = spark.read.parquet("/mnt/silver/emissions/")
+
+# Load temperature anomalies data
+temperature_df = spark.read.parquet("/mnt/silver/temperature_anomalies/")
 
 # Display the loaded data
-display(silver_df)
+print("Emissions Data:")
+display(emissions_df)
+
+print("Temperature Anomalies Data:")
+display(temperature_df)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Vérification et Nettoyage des Données
-# MAGIC Assurez-vous que les données sont complètes, propres, et valides.
+# MAGIC ## Vérification et Nettoyage des Données : CO2 Emissions
+# MAGIC Assurez-vous que les données sur les émissions de CO2 sont propres et valides.
 
 # COMMAND ----------
 
 from pyspark.sql.functions import col, count, when
+from functools import reduce  # Ensure reduce is imported
 
 # Check for missing or null values
-missing_values = silver_df.select(
-    [count(when(col(c).isNull(), c)).alias(c) for c in silver_df.columns]
+missing_values_emissions = emissions_df.select(
+    [count(when(col(c).isNull(), c)).alias(c) for c in emissions_df.columns]
 )
-print("Missing values per column:")
-display(missing_values)
+print("Missing values in emissions data:")
+display(missing_values_emissions)
 
-# Fill null values with 0 before summation
-cleaned_silver_df = silver_df.fillna(0)
+# Fill null values with 0
+cleaned_emissions_df = emissions_df.fillna(0)
 
-# Remove rows where all emissions are zero (optional but recommended)
-non_zero_columns = [c for c in cleaned_silver_df.columns if c != "Year"]
-cleaned_silver_df = cleaned_silver_df.filter(
+# Remove rows where all emissions are zero
+non_zero_columns = [c for c in cleaned_emissions_df.columns if c != "Year"]
+cleaned_emissions_df = cleaned_emissions_df.filter(
     reduce(lambda x, y: x | y, [col(c) != 0 for c in non_zero_columns])
 )
 
-# Display the cleaned DataFrame
-display(cleaned_silver_df)
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Vérification et Nettoyage des Données : Temperature Anomalies
+# MAGIC Assurez-vous que les données sur les anomalies de température sont propres et valides.
+
+# COMMAND ----------
+
+# Check for missing or null values
+missing_values_temperature = temperature_df.select(
+    [count(when(col(c).isNull(), c)).alias(c) for c in temperature_df.columns]
+)
+print("Missing values in temperature anomalies data:")
+display(missing_values_temperature)
+
+# Fill null values (if any) with 0
+cleaned_temperature_df = temperature_df.fillna(0)
+
+# Display the cleaned temperature anomalies data
+display(cleaned_temperature_df)
 
 # COMMAND ----------
 
@@ -109,20 +136,17 @@ display(cleaned_silver_df)
 # COMMAND ----------
 
 from pyspark.sql.functions import col
-from functools import reduce
 
-# Calculate Total Emissions Per Year
-columns_to_sum = [col(c) for c in cleaned_silver_df.columns if c != "Year"]
-transformed_df = cleaned_silver_df.withColumn(
+# CO2 Emissions: Calculate Total Emissions Per Year
+columns_to_sum = [col(c) for c in cleaned_emissions_df.columns if c != "Year"]
+transformed_emissions_df = cleaned_emissions_df.withColumn(
     "Total_Emissions",
     reduce(lambda x, y: x + y, columns_to_sum)  # Sum all columns except 'Year'
 )
 
-# Display the transformed DataFrame
-display(transformed_df)
-
 # Verify if Total_Emissions contains invalid data
-transformed_df.filter(col("Total_Emissions") == 0).show()
+print("Transformed CO2 Emissions Data:")
+display(transformed_emissions_df)
 
 # COMMAND ----------
 
@@ -132,8 +156,11 @@ transformed_df.filter(col("Total_Emissions") == 0).show()
 
 # COMMAND ----------
 
-# Save the transformed data to the gold layer
-transformed_df.write.format("parquet").mode("overwrite").save("/mnt/gold/emissions_transformed/")
+# Save transformed CO2 emissions data to the gold layer
+transformed_emissions_df.write.format("parquet").mode("overwrite").save("/mnt/gold/emissions_transformed/")
+
+# Save cleaned temperature anomalies data to the gold layer
+cleaned_temperature_df.write.format("parquet").mode("overwrite").save("/mnt/gold/temperature_anomalies_transformed/")
 
 # COMMAND ----------
 
@@ -143,6 +170,12 @@ transformed_df.write.format("parquet").mode("overwrite").save("/mnt/gold/emissio
 
 # COMMAND ----------
 
-# Verify the saved data in the gold layer
-gold_df = spark.read.parquet("/mnt/gold/emissions_transformed/")
-display(gold_df)
+# Verify saved CO2 emissions data
+gold_emissions_df = spark.read.parquet("/mnt/gold/emissions_transformed/")
+print("Transformed CO2 Emissions Data in Gold Layer:")
+display(gold_emissions_df)
+
+# Verify saved temperature anomalies data
+gold_temperature_df = spark.read.parquet("/mnt/gold/temperature_anomalies_transformed/")
+print("Transformed Temperature Anomalies Data in Gold Layer:")
+display(gold_temperature_df)
