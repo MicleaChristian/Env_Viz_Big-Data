@@ -2,7 +2,7 @@
 # **Impact of Climate Change Indicators on Global Trends**
 
 ## **Description**
-This project analyzes the impact of key climate change indicators (e.g., temperature trends, CO2 emissions, and natural disaster frequency) on global and regional patterns. It employs a Lakehouse architecture using Databricks Community and Microsoft Fabric for ETL and Power BI for visualization.
+This project analyzes the impact of key climate change indicators (e.g., temperature trends and CO2 emissions) on global patterns. It employs a Lakehouse architecture using Databricks Community and Microsoft Fabric for ETL and Power BI for visualization.
 
 ---
 
